@@ -3,6 +3,9 @@ pragma solidity 0.8.26;
 
 import "./IVoteD21.sol";
 
+// voter cann ot be subject
+// subject can not be voter
+
 contract D21 is IVoteD21 {
     address public owner;
     mapping(string => bool) private registeredNames;
@@ -48,6 +51,7 @@ contract D21 is IVoteD21 {
     function addSubject(string memory name) external override votingNotActive {
         require(subjects[msg.sender].votes == 0 && bytes(subjects[msg.sender].name).length == 0, "Address already registered as a subject");
         require(!registeredNames[name], "Subject name already exists");
+        require(bytes(name).length > 0, "Empty name can not be registered");
 
         registeredNames[name] = true;
         subjectAddresses.push(msg.sender);
@@ -74,7 +78,7 @@ contract D21 is IVoteD21 {
 
     function votePositive(address addr) external override onlyVoter votingActive {
         require(voterVoteCount[msg.sender].positiveVotes < 2, "Already cast two positive votes");
-        require(subjects[addr].votes != 0, "Subject not found");
+        require(bytes(subjects[addr].name).length > 0, "Subject not found");
 
         subjects[addr].votes += 1;
         voterVoteCount[msg.sender].positiveVotes += 1;
@@ -86,7 +90,7 @@ contract D21 is IVoteD21 {
     function voteNegative(address addr) external override onlyVoter votingActive {
         require(voterVoteCount[msg.sender].positiveVotes >= 2, "Need 2 positive votes first");
         require(!voterVoteCount[msg.sender].negativeVoteUsed, "Already used negative vote");
-        require(subjects[addr].votes != 0, "Subject not found");
+        require(bytes(subjects[addr].name).length > 0, "Subject not found");
 
         subjects[addr].votes -= 1;
         voterVoteCount[msg.sender].negativeVoteUsed = true;
@@ -105,21 +109,30 @@ contract D21 is IVoteD21 {
     // Gas-efficient sorting: Insert sorting happens only when votes are cast
     function _sortSubjectAfterVote(address addr) internal {
         int256 currentVotes = subjects[addr].votes;
-
         uint256 length = subjectAddresses.length;
-        for (uint256 i = 0; i < length - 1; i++) {
-            if (subjectAddresses[i] == addr) {
-                for (uint256 j = i; j < length - 1; j++) {
-                    if (subjects[subjectAddresses[j + 1]].votes < currentVotes) {
-                        subjectAddresses[j] = subjectAddresses[j + 1];
-                    } else {
-                        break;
-                    }
-                }
-                subjectAddresses[length - 1] = addr;
+        uint256 currentIndex;
+
+        // Find the current index of the voted subject
+        for (currentIndex = 0; currentIndex < length; currentIndex++) {
+            if (subjectAddresses[currentIndex] == addr) {
                 break;
             }
         }
+
+        // Move the subject up in the list if its votes have increased
+        while (currentIndex > 0 && subjects[subjectAddresses[currentIndex - 1]].votes < currentVotes) {
+            subjectAddresses[currentIndex] = subjectAddresses[currentIndex - 1];
+            currentIndex--;
+        }
+
+        // Move the subject down in the list if its votes have decreased
+        while (currentIndex < length - 1 && subjects[subjectAddresses[currentIndex + 1]].votes > currentVotes) {
+            subjectAddresses[currentIndex] = subjectAddresses[currentIndex + 1];
+            currentIndex++;
+        }
+
+        // Place the subject at its correct position
+        subjectAddresses[currentIndex] = addr;
     }
 
     function getResults() external view override returns (Subject[] memory) {
