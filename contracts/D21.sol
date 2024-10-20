@@ -5,6 +5,7 @@ import "./IVoteD21.sol";
 
 contract D21 is IVoteD21 {
     address public owner;
+    mapping(string => bool) private registeredNames;
     mapping(address => Subject) public subjects;
     address[] public subjectAddresses;
     mapping(address => bool) public voters;
@@ -16,6 +17,7 @@ contract D21 is IVoteD21 {
         uint8 positiveVotes;
         bool negativeVoteUsed;
     }
+
     mapping(address => VoterVotes) public voterVoteCount;
 
     modifier onlyOwner() {
@@ -44,10 +46,12 @@ contract D21 is IVoteD21 {
     }
 
     function addSubject(string memory name) external override votingNotActive {
-        require(subjects[msg.sender].votes == 0, "Subject already registered");
+        require(subjects[msg.sender].votes == 0 && bytes(subjects[msg.sender].name).length == 0, "Address already registered as a subject");
+        require(!registeredNames[name], "Subject name already exists");
 
-        subjects[msg.sender] = Subject(name, 0);
+        registeredNames[name] = true;
         subjectAddresses.push(msg.sender);
+        subjects[msg.sender] = Subject(name, 0);
     }
 
     function addVoter(address addr) external override onlyOwner {

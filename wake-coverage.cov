@@ -1,0 +1,125 @@
+{
+    "version": "1.0",
+    "data": {
+        "/home/andrei/SmartContractD21/contracts/D21.sol": [
+            {
+                "name": "constructor",
+                "startLine": 42,
+                "startColumn": 4,
+                "endLine": 42,
+                "endColumn": 15,
+                "coverageHits": 3,
+                "modRecords": [],
+                "branchRecords": [
+                    {
+                        "startLine": 43,
+                        "startColumn": 8,
+                        "endLine": 43,
+                        "endColumn": 26,
+                        "coverageHits": 3
+                    }
+                ]
+            },
+            {
+                "name": "addSubject",
+                "startLine": 46,
+                "startColumn": 13,
+                "endLine": 46,
+                "endColumn": 23,
+                "coverageHits": 6,
+                "modRecords": [],
+                "branchRecords": [
+                    {
+                        "startLine": 47,
+                        "startColumn": 8,
+                        "endLine": 47,
+                        "endColumn": 139,
+                        "coverageHits": 6
+                    },
+                    {
+                        "startLine": 48,
+                        "startColumn": 8,
+                        "endLine": 48,
+                        "endColumn": 70,
+                        "coverageHits": 4
+                    },
+                    {
+                        "startLine": 50,
+                        "startColumn": 8,
+                        "endLine": 50,
+                        "endColumn": 36,
+                        "coverageHits": 3
+                    },
+                    {
+                        "startLine": 51,
+                        "startColumn": 8,
+                        "endLine": 51,
+                        "endColumn": 41,
+                        "coverageHits": 3
+                    },
+                    {
+                        "startLine": 52,
+                        "startColumn": 8,
+                        "endLine": 52,
+                        "endColumn": 47,
+                        "coverageHits": 3
+                    }
+                ]
+            },
+            {
+                "name": "getSubjects",
+                "startLine": 59,
+                "startColumn": 13,
+                "endLine": 59,
+                "endColumn": 24,
+                "coverageHits": 1,
+                "modRecords": [],
+                "branchRecords": [
+                    {
+                        "startLine": 60,
+                        "startColumn": 8,
+                        "endLine": 60,
+                        "endColumn": 31,
+                        "coverageHits": 1
+                    }
+                ]
+            },
+            {
+                "name": "getSubject",
+                "startLine": 63,
+                "startColumn": 13,
+                "endLine": 63,
+                "endColumn": 23,
+                "coverageHits": 2,
+                "modRecords": [],
+                "branchRecords": [
+                    {
+                        "startLine": 64,
+                        "startColumn": 8,
+                        "endLine": 64,
+                        "endColumn": 29,
+                        "coverageHits": 2
+                    }
+                ]
+            },
+            {
+                "name": "votingNotActive",
+                "startLine": 37,
+                "startColumn": 13,
+                "endLine": 37,
+                "endColumn": 28,
+                "coverageHits": 6,
+                "modRecords": [],
+                "branchRecords": [
+                    {
+                        "startLine": 38,
+                        "startColumn": 8,
+                        "endLine": 38,
+                        "endColumn": 79,
+                        "coverageHits": 6
+                    }
+                ]
+            }
+        ]
+    }
+}
