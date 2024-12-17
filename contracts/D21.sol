@@ -3,26 +3,26 @@ pragma solidity 0.8.26;
 
 import "./IVoteD21.sol";
 
-// voter cann ot be subject
-// subject can not be voter
-
 contract D21 is IVoteD21 {
-    address public owner;
     mapping(string => bool) private registeredNames;
     mapping(address => Subject) public subjects;
-    address[] public subjectAddresses;
     mapping(address => bool) public voters;
-    bool public votingStarted;
+    address[] public subjectAddresses;
     uint256 public votingEndTime;
+    bool public votingStarted;
+    address public owner;
     
-    // To track how many votes a voter has cast (2 positive and 1 negative)
     struct VoterVotes {
         uint8 positiveVotes;
         bool negativeVoteUsed;
+        mapping(address => bool) votedSubjects;
     }
 
-    mapping(address => VoterVotes) public voterVoteCount;
+    mapping(address => VoterVotes) private voterVoteCount;
+    mapping(address => bool) private isSubject;
 
+
+    ////////////// MODIFIERS //////////////
     modifier onlyOwner() {
         require(msg.sender == owner, "Not the owner");
         _;
@@ -43,106 +43,190 @@ contract D21 is IVoteD21 {
         require(!votingStarted, "Voting is active, cannot perform this action");
         _;
     }
+    ///////////////////////////////////////
+
 
     constructor() {
         owner = msg.sender;
     }
 
-    function addSubject(string memory name) external override votingNotActive {
-        require(subjects[msg.sender].votes == 0 && bytes(subjects[msg.sender].name).length == 0, "Address already registered as a subject");
-        require(!registeredNames[name], "Subject name already exists");
-        require(bytes(name).length > 0, "Empty name can not be registered");
 
+    ////////////// HELP FUNCTIONS //////////////
+    function hasVoterVotedForSubject(address voter, address subject) external view returns (bool) {
+        return voterVoteCount[voter].votedSubjects[subject];
+    }
+
+    function votePositiveInternal(address subject_) private {
+        require(voterVoteCount[msg.sender].positiveVotes < 3, "Already cast three positive votes");
+        require(bytes(subjects[subject_].name).length > 0, "Subject not found");
+        require(!voterVoteCount[msg.sender].votedSubjects[subject_], "Already voted for this subject");
+
+        subjects[subject_].votes += 1;
+        voterVoteCount[msg.sender].positiveVotes += 1;
+        voterVoteCount[msg.sender].votedSubjects[subject_] = true;
+
+        _sortSubjectAfterVote(subject_);
+        emit PositiveVoted(msg.sender, subject_);
+    }
+
+    function voteNegativeInternal(address subject_) private {
+        require(voterVoteCount[msg.sender].positiveVotes >= 2, "Need 2 positive votes first");
+        require(!voterVoteCount[msg.sender].negativeVoteUsed, "Already used negative vote");
+        require(bytes(subjects[subject_].name).length > 0, "Subject not found");
+        require(!voterVoteCount[msg.sender].votedSubjects[subject_], "Already voted for this subject");
+
+        subjects[subject_].votes -= 1;
+        voterVoteCount[msg.sender].negativeVoteUsed = true;
+        voterVoteCount[msg.sender].votedSubjects[subject_] = true;
+
+        _sortSubjectAfterVote(subject_);
+        emit NegativeVoted(msg.sender, subject_);
+    }
+    ////////////////////////////////////////////
+
+
+    ////////////// MAIN FUNCTIONS //////////////
+    function addSubject(string memory name) external override votingNotActive {
+        require(!isSubject[msg.sender], "Address already registered as a subject");
+        require(bytes(name).length > 0, "Empty name can not be registered");
+        require(!registeredNames[name], "Subject name already exists");
+
+        isSubject[msg.sender] = true;
         registeredNames[name] = true;
         subjectAddresses.push(msg.sender);
         subjects[msg.sender] = Subject(name, 0);
+        
+        emit SubjectAdded(msg.sender, name);
     }
 
-    function addVoter(address addr) external override onlyOwner {
-        voters[addr] = true;
+    function addVoter(address voter_) external override onlyOwner {
+        voters[voter_] = true;
+        emit VoterAdded(voter_);
     }
 
     function getSubjects() external view override returns (address[] memory) {
         return subjectAddresses;
     }
 
-    function getSubject(address addr) external view override returns (Subject memory) {
-        return subjects[addr];
+    function getSubject(address addr_) external view override returns (Subject memory) {
+        return subjects[addr_];
     }
 
     function startVoting() external override onlyOwner votingNotActive {
         require(subjectAddresses.length > 0, "No subjects registered");
         votingStarted = true;
-        votingEndTime = block.timestamp + 2 days;
+        votingEndTime = block.timestamp + 4 days;
+        emit VotingStarted();
     }
 
-    function votePositive(address addr) external override onlyVoter votingActive {
-        require(voterVoteCount[msg.sender].positiveVotes < 2, "Already cast two positive votes");
-        require(bytes(subjects[addr].name).length > 0, "Subject not found");
+    function votePositive(address subject_) public override onlyVoter votingActive {
+        require(voterVoteCount[msg.sender].positiveVotes < 3, "Already cast three positive votes");
+        require(bytes(subjects[subject_].name).length > 0, "Subject not found");
+        require(!voterVoteCount[msg.sender].votedSubjects[subject_], "Already voted for this subject");
 
-        subjects[addr].votes += 1;
+        subjects[subject_].votes += 1;
         voterVoteCount[msg.sender].positiveVotes += 1;
+        voterVoteCount[msg.sender].votedSubjects[subject_] = true;
 
-        // Insert sorting optimization
-        _sortSubjectAfterVote(addr);
+        _sortSubjectAfterVote(subject_);
+        emit PositiveVoted(msg.sender, subject_);
     }
 
-    function voteNegative(address addr) external override onlyVoter votingActive {
+    function voteNegative(address subject_) public override onlyVoter votingActive {
         require(voterVoteCount[msg.sender].positiveVotes >= 2, "Need 2 positive votes first");
         require(!voterVoteCount[msg.sender].negativeVoteUsed, "Already used negative vote");
-        require(bytes(subjects[addr].name).length > 0, "Subject not found");
+        require(bytes(subjects[subject_].name).length > 0, "Subject not found");
+        require(!voterVoteCount[msg.sender].votedSubjects[subject_], "Already voted for this subject");
 
-        subjects[addr].votes -= 1;
+        subjects[subject_].votes -= 1;
         voterVoteCount[msg.sender].negativeVoteUsed = true;
+        voterVoteCount[msg.sender].votedSubjects[subject_] = true;
 
-        // Insert sorting optimization
-        _sortSubjectAfterVote(addr);
+        _sortSubjectAfterVote(subject_);
+        emit NegativeVoted(msg.sender, subject_);
+    }    
+
+    function voteBatch(address[] calldata subjects_, bool[] calldata votes_) external override onlyVoter votingActive {
+        require(subjects_.length == votes_.length, "Arrays length mismatch");
+        require(subjects_.length > 0, "Empty arrays not allowed");
+        
+        for (uint256 i = 0; i < subjects_.length; i++) {
+            if (votes_[i]) {
+                votePositiveInternal(subjects_[i]);
+            } else {
+                voteNegativeInternal(subjects_[i]);
+            }
+        }
     }
 
     function getRemainingTime() external view override returns (uint256) {
         if (block.timestamp > votingEndTime) {
             return 0;
         }
+        
         return votingEndTime - block.timestamp;
     }
 
-    // Gas-efficient sorting: Insert sorting happens only when votes are cast
-    function _sortSubjectAfterVote(address addr) internal {
-        int256 currentVotes = subjects[addr].votes;
+    /**
+     * Maintains sorted order of subjects during voting to optimize getResults
+     * - Reduces gas cost by spreading sorting across vote transactions
+     * - Avoids expensive sorting operation when retrieving results
+     * - Only moves the voted subject to its correct position
+     */
+    function _sortSubjectAfterVote(address addr) private {
+        int256 votesToSort = subjects[addr].votes;
         uint256 length = subjectAddresses.length;
         uint256 currentIndex;
 
-        // Find the current index of the voted subject
+        // Find current position
         for (currentIndex = 0; currentIndex < length; currentIndex++) {
             if (subjectAddresses[currentIndex] == addr) {
                 break;
             }
         }
 
-        // Move the subject up in the list if its votes have increased
-        while (currentIndex > 0 && subjects[subjectAddresses[currentIndex - 1]].votes < currentVotes) {
-            subjectAddresses[currentIndex] = subjectAddresses[currentIndex - 1];
-            currentIndex--;
+        // Sort upwards if votes increased
+        if (currentIndex > 0 && votesToSort > subjects[subjectAddresses[currentIndex - 1]].votes) {
+            uint256 targetIndex = currentIndex;
+            while (targetIndex > 0 && subjects[subjectAddresses[targetIndex - 1]].votes < votesToSort) {
+                address temp = subjectAddresses[targetIndex];
+                subjectAddresses[targetIndex] = subjectAddresses[targetIndex - 1];
+                subjectAddresses[targetIndex - 1] = temp;
+                targetIndex--;
+            }
         }
-
-        // Move the subject down in the list if its votes have decreased
-        while (currentIndex < length - 1 && subjects[subjectAddresses[currentIndex + 1]].votes > currentVotes) {
-            subjectAddresses[currentIndex] = subjectAddresses[currentIndex + 1];
-            currentIndex++;
+        // Sort downwards if votes decreased
+        else if (currentIndex < length - 1 && votesToSort < subjects[subjectAddresses[currentIndex + 1]].votes) {
+            uint256 targetIndex = currentIndex;
+            while (targetIndex < length - 1 && subjects[subjectAddresses[targetIndex + 1]].votes > votesToSort) {
+                address temp = subjectAddresses[targetIndex];
+                subjectAddresses[targetIndex] = subjectAddresses[targetIndex + 1];
+                subjectAddresses[targetIndex + 1] = temp;
+                targetIndex++;
+            }
         }
-
-        // Place the subject at its correct position
-        subjectAddresses[currentIndex] = addr;
     }
 
+    /**
+     * @notice Get voting results in descending order by votes
+     * @dev Gas-optimized through several mechanisms:
+     * 1. Array is kept sorted during voting via _sortSubjectAfterVote
+     * 2. No sorting needed at retrieval time, just a single pass copy
+     * 3. Minimal memory operations - just one array allocation
+     * 4. View function - no state modifications, lower gas cost
+     */
     function getResults() external view override returns (Subject[] memory) {
+        require(block.timestamp > votingEndTime, "Voting hasn't ended yet");
+        
         uint256 length = subjectAddresses.length;
         Subject[] memory sortedSubjects = new Subject[](length);
 
-        // No need to sort as they are pre-sorted during voting
+        // Single pass copy of pre-sorted array
         for (uint256 i = 0; i < length; i++) {
             sortedSubjects[i] = subjects[subjectAddresses[i]];
         }
+        
         return sortedSubjects;
     }
+    ////////////////////////////////////////////
 }

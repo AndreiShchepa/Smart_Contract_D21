@@ -2,5 +2,5 @@
 ```bash
 wake compile
 wake init pytypes
-wake test --coverage -d tests
+wake test --coverage -d tests/
 ```
